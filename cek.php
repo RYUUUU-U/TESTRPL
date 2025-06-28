@@ -1,62 +1,65 @@
 <?php
-// File: cek.php
-// Kita sudah tidak perlu session_start() di sini karena sudah dipanggil sebelumnya
-// session_start();
+// File: cek.php (Sesuai dengan role yang terpisah)
+session_start();
 
-// Cek apakah user sudah login
 if (!isset($_SESSION['log']) || $_SESSION['log'] != 'True') {
     header('location:login.php');
     exit;
 }
 
-// Fungsi untuk cek apakah yang login adalah admin
-function isAdmin()
-{
+function isAdmin() {
     return isset($_SESSION['role']) && $_SESSION['role'] == 'admin';
 }
 
-// Fungsi untuk cek apakah yang login adalah karyawan
-function isKaryawan()
-{
+function isKaryawan() {
     return isset($_SESSION['role']) && $_SESSION['role'] == 'karyawan';
 }
 
-// Fungsi untuk memastikan hanya admin yang bisa akses
-function mustBeAdmin()
-{
-    if (!isAdmin()) {
-        header('location:login.php');
-        exit;
-    }
+function isHeadOffice() {
+    return isset($_SESSION['role']) && $_SESSION['role'] == 'headoffice';
 }
 
-// Fungsi untuk memastikan hanya karyawan yang bisa akses
-function mustBeKaryawan()
-{
-    if (!isKaryawan()) {
-        header('location:login.php');
-        exit;
-    }
-}
-
-// Cek role untuk halaman saat ini
 $currentPage = basename($_SERVER['PHP_SELF']);
 
-// Halaman yang hanya boleh diakses oleh admin
-$adminPages = ['index.php', 'karyawan.php', 'karyawan_kontrak.php', 'Absensi.php', 'Izin.php'];
+// --- Role: Admin --- (Tidak bisa akses SPK)
+$adminPages = [
+    'index.php', 'input_user.php', 'register.php', 'karyawan.php', 'Input-Karyawan.php',
+    'tambah_karyawan.php', 'update_karyawan.php', 'hapus_karyawan.php', 'karyawan_kontrak.php',
+    'Input-Karyawan_Kontrak.php', 'tambah_kontrak.php', 'update-karyawan_kontrak.php',
+    'update_kontrak.php', 'hapus_karyawan_kontrak.php', 'Absensi.php', 'tambah_absensi.php',
+    'input_absensi.php', 'edit_absensi.php', 'hapus_absensi.php', 'absensi_qr.php', 'Koreksi.php',
+    'update_koreksi.php', 'hapus_koreksi.php', 'izin.php', 'update_status_izin.php', 'hapus_izin.php',
+    'assets/api/listen_for_scan.php','assets/api/generate_token.php','assets/api/check_token_status.php',
+];
 
-// Halaman yang hanya boleh diakses oleh karyawan
-$karyawanPages = ['index_karyawan.php', 'Absensi_karyawan.php', 'Izin_karyawan.php'];
+// --- Role: Head Office --- (Hanya Absensi & SPK)
+$headOfficePages = [
+    'index_headoffice.php', 'Absensi.php', 'alternatif.php', 'alternatif-simpan.php', 'bobot.php',
+    'input_kriteria.php', 'edit_kriteria.php', 'hapus_kriteria.php', 'matrik.php',
+    'matrik-simpan.php', 'matrik-hapus-alternatif.php', 'percetakan_spk.php', 'export_spk.php', 'R.php', 'W.php',
+];
 
-// Redirect sesuai role dan halaman yang diakses
-if (in_array($currentPage, $adminPages) && !isAdmin()) {
-    header('location:index_karyawan.php');
-    exit;
-} else if (in_array($currentPage, $karyawanPages) && !isKaryawan()) {
-    header('location:index.php');
+// --- Role: Karyawan ---
+$karyawanPages = [
+    'index_karyawan.php', 'Absensi_karyawan.php', 'Koreksi_karyawan.php', 'Izin_karyawan.php',
+    'tambah_koreksi.php', 'tambah_izin.php', 'validasi_absen.php',
+];
+
+if (isAdmin()) {
+    if (!in_array($currentPage, $adminPages)) {
+        header('location:index.php'); exit;
+    }
+} elseif (isHeadOffice()) {
+    if (!in_array($currentPage, $headOfficePages)) {
+        header('location:index_headoffice.php'); exit;
+    }
+} elseif (isKaryawan()) {
+    if (!in_array($currentPage, $karyawanPages)) {
+        header('location:index_karyawan.php'); exit;
+    }
+} else {
+    session_destroy();
+    header('location:login.php');
     exit;
 }
-
-// JANGAN PANGGIL QUERY DI CEK.PHP
-// Kode query dipindahkan ke file yang menggunakan cek.php
 ?>

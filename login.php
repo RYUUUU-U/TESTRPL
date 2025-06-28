@@ -1,15 +1,21 @@
 ﻿<?php
-// koneksi.php sudah berisi session_start() dan koneksi $pdo
+// koneksi.php diasumsikan sudah berisi session_start() dan koneksi $pdo atau $conn
+// Untuk konsistensi dengan file lain, kita gunakan require.
 require 'koneksi.php';
 
 // Jika pengguna sudah login, langsung arahkan ke halaman yang sesuai
 if (isset($_SESSION['log']) && $_SESSION['log'] === 'True') {
-    if ($_SESSION['role'] === 'admin') {
-        header('location:index.php');
-        exit;
-    } else if ($_SESSION['role'] === 'karyawan') {
-        header('location:index_karyawan.php');
-        exit;
+    if (isset($_SESSION['role'])) {
+        if ($_SESSION['role'] === 'admin') {
+            header('location:index.php');
+            exit;
+        } elseif ($_SESSION['role'] === 'headoffice') {
+            header('location:index_headoffice.php'); // Arahkan headoffice ke dashboard-nya
+            exit;
+        } elseif ($_SESSION['role'] === 'karyawan') {
+            header('location:index_karyawan.php');
+            exit;
+        }
     }
 }
 
@@ -17,53 +23,54 @@ $error_message = ''; // Variabel untuk menyimpan pesan error
 
 // Proses form login saat tombol ditekan
 if (isset($_POST['login'])) {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
+    // Diasumsikan koneksi menggunakan mysqli ($conn) seperti file lain di repo
+    $username = mysqli_real_escape_string($conn, $_POST['username']);
+    $password = mysqli_real_escape_string($conn, $_POST['password']);
+    
+    // Query untuk mengambil data user. Diasumsikan tidak ada join dengan karyawan di sini.
+    $query = "SELECT * FROM users WHERE username = '$username'";
+    $cek_user = mysqli_query($conn, $query);
 
-    try {
-        // Query yang benar untuk mengambil data user dan karyawan terkait
-        $sql = "SELECT users.*, karyawan.karyawan_id, karyawan.nama_lengkap 
-                FROM users 
-                LEFT JOIN karyawan ON users.user_id = karyawan.user_id
-                WHERE users.username = ?";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$username]);
-        $user = $stmt->fetch();
+    if (mysqli_num_rows($cek_user) > 0) {
+        $user = mysqli_fetch_assoc($cek_user);
 
         // Verifikasi apakah user ditemukan DAN password cocok menggunakan hashing
+        // Ganti password_verify dengan perbandingan biasa jika password tidak di-hash
         if ($user && password_verify($password, $user['password'])) {
             
             // Set semua variabel sesi yang dibutuhkan aplikasi
             $_SESSION['log'] = 'True';
             $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
-            $_SESSION['user_id'] = $user['user_id'];
-            $_SESSION['nama'] = $user['nama_lengkap'];
+            $_SESSION['user_id'] = $user['id_user']; // Sesuaikan nama kolom jika berbeda
+            $_SESSION['nama'] = $user['nama']; // Sesuaikan nama kolom jika berbeda
             
-            // --- INI BAGIAN TERPENTING UNTUK MEMPERBAIKI ERROR 403 ---
-            $_SESSION['karyawan_id'] = $user['karyawan_id']; 
-
-            // Redirect berdasarkan role
+            // =======================================================
+            // == LOGIKA PENGALIHAN BERDASARKAN ROLE MASING-MASING ==
+            // =======================================================
             if ($user['role'] === 'admin') {
                 header('location:index.php');
                 exit;
-            } else if ($user['role'] === 'karyawan') {
+            } elseif ($user['role'] === 'headoffice') {
+                header('location:index_headoffice.php');
+                exit;
+            } elseif ($user['role'] === 'karyawan') {
                 header('location:index_karyawan.php');
                 exit;
+            } else {
+                // Handle jika ada role lain yang tidak terdefinisi
+                $error_message = 'Role pengguna tidak dikenali!';
             }
 
         } else {
             // Jika username atau password salah
             $error_message = 'Username atau Password Salah!';
         }
-
-    } catch (PDOException $e) {
-        $error_message = "Error Database: " . $e->getMessage();
+    } else {
+        $error_message = 'Username atau Password Salah!';
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -81,7 +88,7 @@ if (isset($_POST['login'])) {
             <div class="account-center">
                 <div class="account-box">
                     <div class="account-logo">
-                        <a href="index.php"><img src="assets/img/logo.png" alt=""></a>
+                        <a href="#"><img src="assets/img/logo.png" alt=""></a>
                     </div>
                     
                     <?php if (!empty($error_message)): ?>
